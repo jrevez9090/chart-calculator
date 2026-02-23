@@ -3,6 +3,7 @@ import swisseph as swe
 import datetime
 import pytz
 import re
+import math
 from geopy.geocoders import Nominatim
 from timezonefinder import TimezoneFinder
 
@@ -10,6 +11,13 @@ st.set_page_config(page_title="Natal Chart Calculator", layout="centered")
 
 st.title("Natal Chart Calculator")
 st.markdown("Enter birth data to calculate planetary positions.")
+
+# ------------------------
+# SWISS EPHEMERIS SETUP
+# ------------------------
+
+# IMPORTANT: later we will replace '.' with folder path containing .se1 files
+swe.set_ephe_path('.')
 
 # ------------------------
 # INPUTS
@@ -50,8 +58,10 @@ def format_position(longitude):
     longitude = longitude % 360
     sign_index = int(longitude // 30)
     degree = int(longitude % 30)
-    minutes = int(((longitude % 30) - degree) * 60)
-    return f"{degree}º{minutes:02d}' {signs[sign_index]}"
+    minutes_full = (longitude % 30 - degree) * 60
+    minutes = int(minutes_full)
+    seconds = int((minutes_full - minutes) * 60)
+    return f"{degree}º{minutes:02d}'{seconds:02d}\" {signs[sign_index]}"
 
 # ------------------------
 # CALCULATE
@@ -92,12 +102,19 @@ if st.button("Calculate"):
     local_dt = timezone.localize(local_dt)
     utc_dt = local_dt.astimezone(pytz.utc)
 
+    # DEBUG INFO FOR COMPARISON WITH SOLAR FIRE
+    st.markdown("### Technical Data")
+    st.write("UTC used:", utc_dt)
+
     jd = swe.julday(
         utc_dt.year,
         utc_dt.month,
         utc_dt.day,
-        utc_dt.hour + utc_dt.minute / 60
+        utc_dt.hour + utc_dt.minute / 60 + utc_dt.second / 3600
     )
+
+    st.write("Julian Day:", jd)
+    st.write("Delta-T (seconds):", swe.deltat(jd))
 
     # ------------------------
     # PLANETS
@@ -135,13 +152,13 @@ if st.button("Calculate"):
     ic = (mc + 180) % 360
 
     st.markdown("### Angles")
-    st.write(f"Ascendant — {format_position(asc)}")
-    st.write(f"MC — {format_position(mc)}")
-    st.write(f"Descendant — {format_position(desc)}")
-    st.write(f"IC (Fundo do Céu) — {format_position(ic)}")
+    st.write("Ascendant —", format_position(asc))
+    st.write("MC —", format_position(mc))
+    st.write("Descendant —", format_position(desc))
+    st.write("IC —", format_position(ic))
 
     # ------------------------
-    # DAY / NIGHT
+    # DAY / NIGHT (TRADITIONAL)
     # ------------------------
 
     sun_long = planet_positions["Sun"]
@@ -164,5 +181,5 @@ if st.button("Calculate"):
         daimon = (asc + moon_long - sun_long) % 360
 
     st.markdown("### Lots")
-    st.write(f"Lot of Fortune — {format_position(fortune)}")
-    st.write(f"Lot of Daimon (Spirit) — {format_position(daimon)}")
+    st.write("Lot of Fortune —", format_position(fortune))
+    st.write("Lot of Daimon —", format_position(daimon))
