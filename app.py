@@ -146,13 +146,15 @@ if st.button("Calculate"):
     st.write(f"IC (Fundo do Céu) — {format_position(ic)}")
 
     # ------------------------
-    # DAY / NIGHT
+    # DAY / NIGHT (TRADITIONAL & CORRECT)
     # ------------------------
 
     sun_long = planet_positions["Sun"]
-    moon_long = planet_positions["Moon"]
 
-    is_day = is_sun_above_horizon(sun_long, asc)
+    desc = (asc + 180) % 360
+
+    # Sun is above horizon if it is between DESC and ASC via MC
+    is_day = ((sun_long - desc) % 360) < 180
 
     st.markdown("### Sect")
     st.write("Day Chart" if is_day else "Night Chart")
