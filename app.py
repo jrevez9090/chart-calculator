@@ -170,13 +170,12 @@ if st.button("Calculate"):
     # HOUSES (ALCABITIUS)
     # ---------------------
 
-    houses, ascmc = swe.houses_ex(
-        jd_ut,
-        lat,
-        lon,
-        b'A',
-        swe.FLG_SWIEPH
-    )
+    houses, ascmc = swe.houses(
+    jd_ut,
+    lat,
+    lon,
+    b'A'
+)
 
     st.markdown("### House Cusps (Alcabitius)")
     for i in range(12):
