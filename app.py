@@ -9,7 +9,6 @@ from timezonefinder import TimezoneFinder
 st.set_page_config(page_title="Natal Chart Calculator", layout="centered")
 
 st.title("Natal Chart Calculator")
-
 st.markdown("Enter birth data to calculate planetary positions.")
 
 # ------------------------
@@ -54,9 +53,6 @@ def format_position(longitude):
     minutes = int(((longitude % 30) - degree) * 60)
     return f"{degree}º{minutes:02d}' {signs[sign_index]}"
 
-def is_sun_above_horizon(sun_long, asc):
-    return ((sun_long - asc) % 360) > 180
-
 # ------------------------
 # CALCULATE
 # ------------------------
@@ -70,7 +66,7 @@ if st.button("Calculate"):
         st.stop()
 
     if time is None:
-        st.error("Please enter time in format 00h00m (example: 04h35m).")
+        st.error("Please enter time in format 00h00m.")
         st.stop()
 
     geolocator = Nominatim(user_agent="astro_app")
@@ -87,7 +83,7 @@ if st.button("Calculate"):
     timezone_str = tf.timezone_at(lat=lat, lng=lon)
 
     if timezone_str is None:
-        st.error("Timezone could not be determined.")
+        st.error("Timezone not found.")
         st.stop()
 
     timezone = pytz.timezone(timezone_str)
@@ -122,16 +118,16 @@ if st.button("Calculate"):
     planet_positions = {}
 
     for name, body in planets.items():
-        position = swe.calc_ut(jd, body)
-        longitude = position[0][0]
+        pos = swe.calc_ut(jd, body)
+        longitude = pos[0][0]
         planet_positions[name] = longitude
         st.write(f"{name} — {format_position(longitude)}")
 
     # ------------------------
-    # WHOLE SIGN HOUSES
+    # HOUSES (ALCABITIUS)
     # ------------------------
 
-    houses, ascmc = swe.houses(jd, lat, lon, b'W')
+    houses, ascmc = swe.houses(jd, lat, lon, b'A')
 
     asc = ascmc[0]
     mc = ascmc[1]
@@ -139,21 +135,18 @@ if st.button("Calculate"):
     ic = (mc + 180) % 360
 
     st.markdown("### Angles")
-
     st.write(f"Ascendant — {format_position(asc)}")
     st.write(f"MC — {format_position(mc)}")
     st.write(f"Descendant — {format_position(desc)}")
     st.write(f"IC (Fundo do Céu) — {format_position(ic)}")
 
     # ------------------------
-    # DAY / NIGHT (TRADITIONAL & CORRECT)
+    # DAY / NIGHT
     # ------------------------
 
     sun_long = planet_positions["Sun"]
+    moon_long = planet_positions["Moon"]
 
-    desc = (asc + 180) % 360
-
-    # Sun is above horizon if it is between DESC and ASC via MC
     is_day = ((sun_long - desc) % 360) < 180
 
     st.markdown("### Sect")
@@ -171,6 +164,5 @@ if st.button("Calculate"):
         daimon = (asc + moon_long - sun_long) % 360
 
     st.markdown("### Lots")
-
     st.write(f"Lot of Fortune — {format_position(fortune)}")
     st.write(f"Lot of Daimon (Spirit) — {format_position(daimon)}")
