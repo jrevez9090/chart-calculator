@@ -6,10 +6,9 @@ import re
 import time
 from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut, GeocoderServiceError
-from timezonefinder import TimezoneFinder
 
 # =========================
-# SWISS EPHEMERIS SETUP
+# SWISS EPHEMERIS
 # =========================
 
 swe.set_ephe_path('./ephe')
@@ -32,8 +31,8 @@ date = st.date_input(
 
 time_text = st.text_input("Birth Time (format: 00h00m)")
 place = st.text_input("Birth Place (City, Country)")
+timezone_input = st.text_input("Timezone (ex: Europe/Lisbon)")
 
-# Solar Fire aligned Delta-T
 delta_t_seconds = 63
 
 # =========================
@@ -74,8 +73,8 @@ if st.button("Calculate"):
 
     time_obj = parse_time(time_text)
 
-    if not place:
-        st.error("Please enter a location.")
+    if not place or not timezone_input:
+        st.error("Please enter location and timezone.")
         st.stop()
 
     if time_obj is None:
@@ -83,13 +82,12 @@ if st.button("Calculate"):
         st.stop()
 
     # ---------------------
-    # GEO (ROBUST)
+    # GEO
     # ---------------------
 
-    geolocator = Nominatim(user_agent="astro_app_joana_revez_2026")
+    geolocator = Nominatim(user_agent="astro_app_unique_2026")
 
     location = None
-
     for attempt in range(3):
         try:
             location = geolocator.geocode(place, timeout=10)
@@ -100,31 +98,26 @@ if st.button("Calculate"):
             time.sleep(1)
 
     if not location:
-        st.error("City lookup temporarily unavailable. Please try again.")
+        st.error("City lookup unavailable.")
         st.stop()
 
     lat = location.latitude
     lon = location.longitude
 
     # ---------------------
-    # TIMEZONE
+    # TIMEZONE CONTROLLED
     # ---------------------
 
-    tf = TimezoneFinder()
-    timezone_str = tf.timezone_at(lat=lat, lng=lon)
-
-    if timezone_str is None:
-        st.error("Timezone not found.")
-        st.stop()
-
-    timezone = pytz.timezone(timezone_str)
+    tz = pytz.timezone(timezone_input)
 
     local_dt = datetime.datetime.combine(date, time_obj)
-    local_dt = timezone.localize(local_dt)
+    local_dt = tz.localize(local_dt, is_dst=None)
     utc_dt = local_dt.astimezone(pytz.utc)
 
-    st.markdown("### Technical Data")
-    st.write("UTC used:", utc_dt)
+    st.write("Local datetime:", local_dt)
+    st.write("UTC datetime:", utc_dt)
+    st.write("Latitude:", lat)
+    st.write("Longitude:", lon)
 
     # ---------------------
     # JULIAN DAY
@@ -137,10 +130,7 @@ if st.button("Calculate"):
         utc_dt.hour + utc_dt.minute/60 + utc_dt.second/3600
     )
 
-    delta_t_days = delta_t_seconds / 86400
-    jd_et = jd_ut + delta_t_days  # mantido para Solar Fire alignment
-
-    st.write("Julian Day UT:", jd_ut)
+    st.write("Julian Day:", jd_ut)
 
     # ---------------------
     # PLANETS
@@ -161,63 +151,30 @@ if st.button("Calculate"):
     planet_positions = {}
 
     for name, body in planets.items():
-        pos = swe.calc_ut(jd_ut, body, swe.FLG_SWIEPH)
+        pos = swe.calc_ut(jd_ut, body)
         longitude = pos[0][0]
         planet_positions[name] = longitude
         st.write(f"{name} — {format_position(longitude)}")
 
     # ---------------------
-    # HOUSES (ALCABITIUS)
+    # HOUSES ALCABITIUS
     # ---------------------
 
     houses, ascmc = swe.houses(
-    jd_ut,
-    lat,
-    lon,
-    b'A'
-)
+        jd_ut,
+        lat,
+        lon,
+        b'A'
+    )
 
     st.markdown("### House Cusps (Alcabitius)")
+
     for i in range(12):
         st.write(f"House {i+1} — {format_position(houses[i])}")
 
     asc = ascmc[0]
     mc = ascmc[1]
-    desc = (asc + 180) % 360
-    ic = (mc + 180) % 360
 
-    st.markdown("### Angles (Alcabitius)")
+    st.markdown("### Angles")
     st.write("Ascendant —", format_position(asc))
     st.write("MC —", format_position(mc))
-    st.write("Descendant —", format_position(desc))
-    st.write("IC —", format_position(ic))
-
-    # ---------------------
-    # SECT
-    # ---------------------
-
-    sun_long = planet_positions["Sun"]
-    is_day = ((sun_long - desc) % 360) < 180
-
-    st.markdown("### Sect")
-    st.write("Day Chart" if is_day else "Night Chart")
-
-    st.write("Latitude usada:", lat)
-    st.write("Longitude usada:", lon)
-    
-    # ---------------------
-    # LOTS
-    # ---------------------
-
-    moon_long = planet_positions["Moon"]
-
-    if is_day:
-        fortune = (asc + moon_long - sun_long) % 360
-        daimon = (asc + sun_long - moon_long) % 360
-    else:
-        fortune = (asc + sun_long - moon_long) % 360
-        daimon = (asc + moon_long - sun_long) % 360
-
-    st.markdown("### Lots")
-    st.write("Lot of Fortune —", format_position(fortune))
-    st.write("Lot of Daimon —", format_position(daimon))
