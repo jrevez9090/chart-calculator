@@ -23,7 +23,21 @@ date = st.date_input(
     min_value=datetime.date(1500,1,1),
     max_value=datetime.date(2100,12,31)
 )
-time = st.time_input("Birth Time")
+time_text = st.text_input("Birth Time (format: 00h00m)")
+
+def parse_time(text):
+    if not text:
+        return None
+    text = text.strip().lower().replace(" ", "")
+    match = re.fullmatch(r"(\d{1,2})h(\d{1,2})m", text)
+    if match:
+        hour = int(match.group(1))
+        minute = int(match.group(2))
+        if 0 <= hour <= 23 and 0 <= minute <= 59:
+            return datetime.time(hour, minute)
+    return None
+
+time = parse_time(time_text)
 place = st.text_input("Birth Place (City, Country)")
 
 # ------------------------
