@@ -24,29 +24,35 @@ date = st.date_input(
 )
 
 time_text = st.text_input("Birth Time (format: 00h00m)")
-
 place = st.text_input("Birth Place (City, Country)")
 
 # ------------------------
-# TIME PARSER
+# HELPERS
 # ------------------------
 
 def parse_time(text):
     if not text:
         return None
-    
     text = text.strip().lower().replace(" ", "")
     match = re.fullmatch(r"(\d{1,2})h(\d{1,2})m", text)
-
     if match:
         hour = int(match.group(1))
         minute = int(match.group(2))
-
         if 0 <= hour <= 23 and 0 <= minute <= 59:
             return datetime.time(hour, minute)
-
     return None
 
+def format_position(longitude):
+    signs = [
+        "Aries","Taurus","Gemini","Cancer",
+        "Leo","Virgo","Libra","Scorpio",
+        "Sagittarius","Capricorn","Aquarius","Pisces"
+    ]
+    longitude = longitude % 360
+    sign_index = int(longitude // 30)
+    degree = int(longitude % 30)
+    minutes = int(((longitude % 30) - degree) * 60)
+    return f"{degree}º{minutes:02d}' {signs[sign_index]}"
 
 # ------------------------
 # CALCULATE
@@ -64,7 +70,6 @@ if st.button("Calculate"):
         st.error("Please enter time in format 00h00m (example: 04h35m).")
         st.stop()
 
-    # Geocode location
     geolocator = Nominatim(user_agent="astro_app")
     location = geolocator.geocode(place)
 
@@ -75,7 +80,6 @@ if st.button("Calculate"):
     lat = location.latitude
     lon = location.longitude
 
-    # Find timezone
     tf = TimezoneFinder()
     timezone_str = tf.timezone_at(lat=lat, lng=lon)
 
@@ -85,20 +89,20 @@ if st.button("Calculate"):
 
     timezone = pytz.timezone(timezone_str)
 
-    # Local datetime
     local_dt = datetime.datetime.combine(date, time)
     local_dt = timezone.localize(local_dt)
-
-    # Convert to UTC
     utc_dt = local_dt.astimezone(pytz.utc)
 
-    # Julian Day
     jd = swe.julday(
         utc_dt.year,
         utc_dt.month,
         utc_dt.day,
         utc_dt.hour + utc_dt.minute / 60
     )
+
+    # ------------------------
+    # PLANETS
+    # ------------------------
 
     planets = {
         "Sun": swe.SUN,
@@ -110,20 +114,57 @@ if st.button("Calculate"):
         "Saturn": swe.SATURN
     }
 
-    signs = [
-        "Aries","Taurus","Gemini","Cancer",
-        "Leo","Virgo","Libra","Scorpio",
-        "Sagittarius","Capricorn","Aquarius","Pisces"
-    ]
-
     st.markdown("### Planetary Positions")
+
+    planet_positions = {}
 
     for name, body in planets.items():
         position = swe.calc_ut(jd, body)
         longitude = position[0][0]
+        planet_positions[name] = longitude
+        st.write(f"{name} — {format_position(longitude)}")
 
-        sign_index = int(longitude // 30)
-        degree = int(longitude % 30)
-        minutes = int(((longitude % 30) - degree) * 60)
+    # ------------------------
+    # HOUSES & ANGLES
+    # ------------------------
 
-        st.write(f"{name} — {degree}º{minutes:02d}' {signs[sign_index]}")
+    houses, ascmc = swe.houses(jd, lat, lon)
+
+    asc = ascmc[0]
+    mc = ascmc[1]
+    desc = (asc + 180) % 360
+    ic = (mc + 180) % 360
+
+    st.markdown("### Angles")
+
+    st.write(f"Ascendant — {format_position(asc)}")
+    st.write(f"MC — {format_position(mc)}")
+    st.write(f"Descendant — {format_position(desc)}")
+    st.write(f"IC (Fundo do Céu) — {format_position(ic)}")
+
+    # ------------------------
+    # DAY OR NIGHT?
+    # ------------------------
+
+    sun_long = planet_positions["Sun"]
+    sun_house = swe.house_pos(asc, lat, houses, sun_long)
+
+    is_day = 7 <= sun_house <= 12
+
+    # ------------------------
+    # LOTS
+    # ------------------------
+
+    moon_long = planet_positions["Moon"]
+
+    if is_day:
+        fortune = (asc + moon_long - sun_long) % 360
+        daimon = (asc + sun_long - moon_long) % 360
+    else:
+        fortune = (asc + sun_long - moon_long) % 360
+        daimon = (asc + moon_long - sun_long) % 360
+
+    st.markdown("### Lots")
+
+    st.write(f"Lot of Fortune — {format_position(fortune)}")
+    st.write(f"Lot of Daimon (Spirit) — {format_position(daimon)}")
