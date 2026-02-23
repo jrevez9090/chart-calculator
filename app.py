@@ -83,7 +83,7 @@ if st.button("Calculate"):
         st.stop()
 
     # ---------------------
-    # GEO (ROBUST VERSION)
+    # GEO (ROBUST)
     # ---------------------
 
     geolocator = Nominatim(user_agent="astro_app_joana_revez_2026")
@@ -137,9 +137,8 @@ if st.button("Calculate"):
         utc_dt.hour + utc_dt.minute/60 + utc_dt.second/3600
     )
 
-    # Solar Fire clone: manual Delta-T
     delta_t_days = delta_t_seconds / 86400
-    jd_et = jd_ut + delta_t_days
+    jd_et = jd_ut + delta_t_days  # mantido para Solar Fire alignment
 
     st.write("Julian Day UT:", jd_ut)
 
@@ -178,6 +177,10 @@ if st.button("Calculate"):
         b'A',
         swe.FLG_SWIEPH
     )
+
+    st.markdown("### House Cusps (Alcabitius)")
+    for i in range(12):
+        st.write(f"House {i+1} — {format_position(houses[i])}")
 
     asc = ascmc[0]
     mc = ascmc[1]
