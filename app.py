@@ -133,13 +133,7 @@ if st.button("Calculate"):
     # HOUSES (ALCABITIUS)
     # -------------------------
 
-    houses, ascmc = swe.houses_ex(
-        jd_ut,
-        lat,
-        lon,
-        b'A',
-        swe.FLG_SWIEPH
-    )
+    houses, ascmc = swe.houses(jd_ut, lat, lon, b'A')
 
     asc = ascmc[0]
     mc = ascmc[1]
