@@ -54,6 +54,9 @@ def format_position(longitude):
     minutes = int(((longitude % 30) - degree) * 60)
     return f"{degree}º{minutes:02d}' {signs[sign_index]}"
 
+def is_sun_above_horizon(sun_long, asc):
+    return ((sun_long - asc) % 360) < 180
+
 # ------------------------
 # CALCULATE
 # ------------------------
@@ -125,10 +128,10 @@ if st.button("Calculate"):
         st.write(f"{name} — {format_position(longitude)}")
 
     # ------------------------
-    # HOUSES & ANGLES
+    # WHOLE SIGN HOUSES
     # ------------------------
 
-    houses, ascmc = swe.houses(jd, lat, lon,b'A')
+    houses, ascmc = swe.houses(jd, lat, lon, b'W')
 
     asc = ascmc[0]
     mc = ascmc[1]
@@ -143,20 +146,20 @@ if st.button("Calculate"):
     st.write(f"IC (Fundo do Céu) — {format_position(ic)}")
 
     # ------------------------
-    # DAY OR NIGHT?
+    # DAY / NIGHT
     # ------------------------
 
     sun_long = planet_positions["Sun"]
-    # Day if Sun above horizon
-    is_day = ( (sun_long - asc) % 360 ) < 180
+    moon_long = planet_positions["Moon"]
 
-    is_day = 7 <= sun_house <= 12
+    is_day = is_sun_above_horizon(sun_long, asc)
+
+    st.markdown("### Sect")
+    st.write("Day Chart" if is_day else "Night Chart")
 
     # ------------------------
     # LOTS
     # ------------------------
-
-    moon_long = planet_positions["Moon"]
 
     if is_day:
         fortune = (asc + moon_long - sun_long) % 360
