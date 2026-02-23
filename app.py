@@ -55,7 +55,7 @@ def format_position(longitude):
     return f"{degree}º{minutes:02d}' {signs[sign_index]}"
 
 def is_sun_above_horizon(sun_long, asc):
-    return ((sun_long - asc) % 360) < 180
+    return ((sun_long - asc) % 360) > 180
 
 # ------------------------
 # CALCULATE
