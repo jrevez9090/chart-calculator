@@ -122,12 +122,7 @@ if st.button("Calculate"):
         utc_dt.hour + utc_dt.minute/60 + utc_dt.second/3600
     )
 
-    # Solar Fire clone: manual Delta-T
-    delta_t_days = delta_t_seconds / 86400
-    jd_et = jd_ut + delta_t_days
-
     st.write("Julian Day UT:", jd_ut)
-    st.write("Delta-T (seconds used):", delta_t_seconds)
 
     # ---------------------
     # PLANETS
