@@ -7,21 +7,20 @@ import math
 from geopy.geocoders import Nominatim
 from timezonefinder import TimezoneFinder
 
+# =========================
+# SWISS EPHEMERIS SETUP
+# =========================
+
+swe.set_ephe_path('./ephe')  # pasta com ficheiros .se1
+
 st.set_page_config(page_title="Natal Chart Calculator", layout="centered")
 
-st.title("Natal Chart Calculator")
+st.title("Natal Chart Calculator (Solar Fire Clone Mode)")
 st.markdown("Enter birth data to calculate planetary positions.")
 
-# ------------------------
-# SWISS EPHEMERIS SETUP
-# ------------------------
-
-# IMPORTANT: later we will replace '.' with folder path containing .se1 files
-swe.set_ephe_path('./ephe')
-
-# ------------------------
+# =========================
 # INPUTS
-# ------------------------
+# =========================
 
 date = st.date_input(
     "Birth Date",
@@ -33,9 +32,12 @@ date = st.date_input(
 time_text = st.text_input("Birth Time (format: 00h00m)")
 place = st.text_input("Birth Place (City, Country)")
 
-# ------------------------
+# 🔧 Ajustável se necessário
+delta_t_seconds = st.number_input("Delta-T override (seconds)", value=63)
+
+# =========================
 # HELPERS
-# ------------------------
+# =========================
 
 def parse_time(text):
     if not text:
@@ -63,9 +65,9 @@ def format_position(longitude):
     seconds = int((minutes_full - minutes) * 60)
     return f"{degree}º{minutes:02d}'{seconds:02d}\" {signs[sign_index]}"
 
-# ------------------------
+# =========================
 # CALCULATE
-# ------------------------
+# =========================
 
 if st.button("Calculate"):
 
@@ -78,6 +80,10 @@ if st.button("Calculate"):
     if time is None:
         st.error("Please enter time in format 00h00m.")
         st.stop()
+
+    # ---------------------
+    # GEO
+    # ---------------------
 
     geolocator = Nominatim(user_agent="astro_app")
     location = geolocator.geocode(place)
@@ -102,23 +108,30 @@ if st.button("Calculate"):
     local_dt = timezone.localize(local_dt)
     utc_dt = local_dt.astimezone(pytz.utc)
 
-    # DEBUG INFO FOR COMPARISON WITH SOLAR FIRE
     st.markdown("### Technical Data")
     st.write("UTC used:", utc_dt)
 
-    jd = swe.julday(
+    # ---------------------
+    # JULIAN DAY
+    # ---------------------
+
+    jd_ut = swe.julday(
         utc_dt.year,
         utc_dt.month,
         utc_dt.day,
-        utc_dt.hour + utc_dt.minute / 60 + utc_dt.second / 3600
+        utc_dt.hour + utc_dt.minute/60 + utc_dt.second/3600
     )
 
-    st.write("Julian Day:", jd)
-    st.write("Delta-T (seconds):", swe.deltat(jd))
+    # Solar Fire clone: manual Delta-T
+    delta_t_days = delta_t_seconds / 86400
+    jd_et = jd_ut + delta_t_days
 
-    # ------------------------
+    st.write("Julian Day UT:", jd_ut)
+    st.write("Delta-T (seconds used):", delta_t_seconds)
+
+    # ---------------------
     # PLANETS
-    # ------------------------
+    # ---------------------
 
     planets = {
         "Sun": swe.SUN,
@@ -135,43 +148,49 @@ if st.button("Calculate"):
     planet_positions = {}
 
     for name, body in planets.items():
-        pos = swe.calc_ut(jd, body)
+        pos = swe.calc_ut(jd_ut, body, swe.FLG_SWIEPH)
         longitude = pos[0][0]
         planet_positions[name] = longitude
         st.write(f"{name} — {format_position(longitude)}")
 
-    # ------------------------
+    # ---------------------
     # HOUSES (ALCABITIUS)
-    # ------------------------
+    # ---------------------
 
-    houses, ascmc = swe.houses(jd, lat, lon, b'A')
+    houses, ascmc = swe.houses_ex(
+        jd_ut,
+        lat,
+        lon,
+        b'A',
+        swe.FLG_SWIEPH
+    )
 
     asc = ascmc[0]
     mc = ascmc[1]
     desc = (asc + 180) % 360
     ic = (mc + 180) % 360
 
-    st.markdown("### Angles")
+    st.markdown("### Angles (Alcabitius)")
     st.write("Ascendant —", format_position(asc))
     st.write("MC —", format_position(mc))
     st.write("Descendant —", format_position(desc))
     st.write("IC —", format_position(ic))
 
-    # ------------------------
-    # DAY / NIGHT (TRADITIONAL)
-    # ------------------------
+    # ---------------------
+    # SECT (Solar Fire style)
+    # ---------------------
 
     sun_long = planet_positions["Sun"]
-    moon_long = planet_positions["Moon"]
-
     is_day = ((sun_long - desc) % 360) < 180
 
     st.markdown("### Sect")
     st.write("Day Chart" if is_day else "Night Chart")
 
-    # ------------------------
+    # ---------------------
     # LOTS
-    # ------------------------
+    # ---------------------
+
+    moon_long = planet_positions["Moon"]
 
     if is_day:
         fortune = (asc + moon_long - sun_long) % 360
