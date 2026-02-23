@@ -16,30 +16,37 @@ st.markdown("Enter birth data to calculate planetary positions.")
 # INPUTS
 # ------------------------
 
-import datetime
-
 date = st.date_input(
     "Birth Date",
     value=datetime.date(1980,1,1),
     min_value=datetime.date(1500,1,1),
     max_value=datetime.date(2100,12,31)
 )
+
 time_text = st.text_input("Birth Time (format: 00h00m)")
+
+place = st.text_input("Birth Place (City, Country)")
+
+# ------------------------
+# TIME PARSER
+# ------------------------
 
 def parse_time(text):
     if not text:
         return None
+    
     text = text.strip().lower().replace(" ", "")
     match = re.fullmatch(r"(\d{1,2})h(\d{1,2})m", text)
+
     if match:
         hour = int(match.group(1))
         minute = int(match.group(2))
+
         if 0 <= hour <= 23 and 0 <= minute <= 59:
             return datetime.time(hour, minute)
+
     return None
 
-time = parse_time(time_text)
-place = st.text_input("Birth Place (City, Country)")
 
 # ------------------------
 # CALCULATE
@@ -47,8 +54,14 @@ place = st.text_input("Birth Place (City, Country)")
 
 if st.button("Calculate"):
 
+    time = parse_time(time_text)
+
     if not place:
         st.error("Please enter a location.")
+        st.stop()
+
+    if time is None:
+        st.error("Please enter time in format 00h00m (example: 04h35m).")
         st.stop()
 
     # Geocode location
@@ -65,6 +78,11 @@ if st.button("Calculate"):
     # Find timezone
     tf = TimezoneFinder()
     timezone_str = tf.timezone_at(lat=lat, lng=lon)
+
+    if timezone_str is None:
+        st.error("Timezone could not be determined.")
+        st.stop()
+
     timezone = pytz.timezone(timezone_str)
 
     # Local datetime
@@ -79,7 +97,7 @@ if st.button("Calculate"):
         utc_dt.year,
         utc_dt.month,
         utc_dt.day,
-        utc_dt.hour + utc_dt.minute/60
+        utc_dt.hour + utc_dt.minute / 60
     )
 
     planets = {
@@ -106,6 +124,6 @@ if st.button("Calculate"):
 
         sign_index = int(longitude // 30)
         degree = int(longitude % 30)
-        minutes = int((longitude % 1) * 60)
+        minutes = int(((longitude % 30) - degree) * 60)
 
-        st.write(f"{name} — {degree}º{minutes}' {signs[sign_index]}")
+        st.write(f"{name} — {degree}º{minutes:02d}' {signs[sign_index]}")
