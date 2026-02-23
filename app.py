@@ -3,7 +3,6 @@ import swisseph as swe
 import datetime
 import pytz
 import re
-import math
 from geopy.geocoders import Nominatim
 from timezonefinder import TimezoneFinder
 
@@ -24,9 +23,9 @@ st.markdown("Enter birth data to calculate planetary positions.")
 
 date = st.date_input(
     "Birth Date",
-    value=datetime.date(1980,1,1),
-    min_value=datetime.date(1500,1,1),
-    max_value=datetime.date(2100,12,31)
+    value=datetime.date(1980, 1, 1),
+    min_value=datetime.date(1500, 1, 1),
+    max_value=datetime.date(2100, 12, 31)
 )
 
 time_text = st.text_input("Birth Time (format: 00h00m)")
@@ -71,6 +70,7 @@ def get_house(longitude, houses):
             if cusp_start <= longitude < cusp_end:
                 return i+1
         else:
+            # Casa que cruza 0° Aries
             if longitude >= cusp_start or longitude < cusp_end:
                 return i+1
     return None
@@ -91,7 +91,10 @@ if st.button("Calculate"):
         st.error("Please enter time in format 00h00m.")
         st.stop()
 
-    # GEO
+    # -------------------------
+    # GEOLOCATION
+    # -------------------------
+
     geolocator = Nominatim(user_agent="astro_app")
     location = geolocator.geocode(place)
 
@@ -115,6 +118,10 @@ if st.button("Calculate"):
     local_dt = timezone.localize(local_dt)
     utc_dt = local_dt.astimezone(pytz.utc)
 
+    # -------------------------
+    # JULIAN DAY
+    # -------------------------
+
     jd_ut = swe.julday(
         utc_dt.year,
         utc_dt.month,
@@ -122,25 +129,9 @@ if st.button("Calculate"):
         utc_dt.hour + utc_dt.minute/60 + utc_dt.second/3600
     )
 
-    # =====================
-    # PLANETS
-    # =====================
-
-    planets = {
-        "Sun": swe.SUN,
-        "Moon": swe.MOON,
-        "Mercury": swe.MERCURY,
-        "Venus": swe.VENUS,
-        "Mars": swe.MARS,
-        "Jupiter": swe.JUPITER,
-        "Saturn": swe.SATURN
-    }
-
-    planet_positions = {}
-
-    # =====================
+    # -------------------------
     # HOUSES (ALCABITIUS)
-    # =====================
+    # -------------------------
 
     houses, ascmc = swe.houses_ex(
         jd_ut,
@@ -155,14 +146,13 @@ if st.button("Calculate"):
     desc = (asc + 180) % 360
     ic = (mc + 180) % 360
 
-    # =====================
+    # =========================
     # DISPLAY HOUSES
-    # =====================
+    # =========================
 
     st.markdown("### House Cusps (Alcabitius)")
-
-    for i in range(1, 13):
-        st.write(f"House {i} — {format_position(houses[i])}")
+    for i in range(12):
+        st.write(f"House {i+1} — {format_position(houses[i])}")
 
     st.markdown("### Angles")
     st.write("Ascendant —", format_position(asc))
@@ -170,9 +160,21 @@ if st.button("Calculate"):
     st.write("Descendant —", format_position(desc))
     st.write("IC —", format_position(ic))
 
-    # =====================
-    # DISPLAY PLANETS
-    # =====================
+    # =========================
+    # PLANETS
+    # =========================
+
+    planets = {
+        "Sun": swe.SUN,
+        "Moon": swe.MOON,
+        "Mercury": swe.MERCURY,
+        "Venus": swe.VENUS,
+        "Mars": swe.MARS,
+        "Jupiter": swe.JUPITER,
+        "Saturn": swe.SATURN
+    }
+
+    planet_positions = {}
 
     st.markdown("### Planetary Positions")
 
@@ -185,9 +187,9 @@ if st.button("Calculate"):
 
         st.write(f"{name} — {format_position(longitude)} — House {house}")
 
-    # =====================
+    # =========================
     # SECT
-    # =====================
+    # =========================
 
     sun_long = planet_positions["Sun"]
     is_day = ((sun_long - desc) % 360) < 180
@@ -195,9 +197,9 @@ if st.button("Calculate"):
     st.markdown("### Sect")
     st.write("Day Chart" if is_day else "Night Chart")
 
-    # =====================
+    # =========================
     # LOTS
-    # =====================
+    # =========================
 
     moon_long = planet_positions["Moon"]
 
