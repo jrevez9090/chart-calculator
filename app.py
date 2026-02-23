@@ -32,8 +32,8 @@ date = st.date_input(
 time_text = st.text_input("Birth Time (format: 00h00m)")
 place = st.text_input("Birth Place (City, Country)")
 
-# 🔧 Ajustável se necessário
-delta_t_seconds = st.number_input("Delta-T override (seconds)", value=63)
+# Solar Fire aligned Delta-T
+delta_t_seconds = 63
 
 # =========================
 # HELPERS
