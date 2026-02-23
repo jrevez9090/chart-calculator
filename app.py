@@ -128,7 +128,7 @@ if st.button("Calculate"):
     # HOUSES & ANGLES
     # ------------------------
 
-    houses, ascmc = swe.houses(jd, lat, lon)
+    houses, ascmc = swe.houses(jd, lat, lon,b'A')
 
     asc = ascmc[0]
     mc = ascmc[1]
@@ -147,7 +147,8 @@ if st.button("Calculate"):
     # ------------------------
 
     sun_long = planet_positions["Sun"]
-    sun_house = swe.house_pos(asc, lat, houses, sun_long)
+    # Day if Sun above horizon
+    is_day = ( (sun_long - asc) % 360 ) < 180
 
     is_day = 7 <= sun_house <= 12
 
