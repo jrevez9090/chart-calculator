@@ -32,6 +32,20 @@ time_text = st.text_input("Birth Time (format: 00h00m)")
 place = st.text_input("Birth Place (City, Country)")
 
 # =========================
+# CACHE GEOLOCATION
+# =========================
+
+@st.cache_data
+def get_location(place_name):
+    geolocator = Nominatim(user_agent="astro_app_unique_123")
+    return geolocator.geocode(place_name)
+
+@st.cache_data
+def get_timezone(lat, lon):
+    tf = TimezoneFinder()
+    return tf.timezone_at(lat=lat, lng=lon)
+
+# =========================
 # HELPERS
 # =========================
 
@@ -70,7 +84,6 @@ def get_house(longitude, houses):
             if cusp_start <= longitude < cusp_end:
                 return i+1
         else:
-            # Casa que cruza 0° Aries
             if longitude >= cusp_start or longitude < cusp_end:
                 return i+1
     return None
@@ -95,8 +108,7 @@ if st.button("Calculate"):
     # GEOLOCATION
     # -------------------------
 
-    geolocator = Nominatim(user_agent="astro_app")
-    location = geolocator.geocode(place)
+    location = get_location(place)
 
     if not location:
         st.error("Location not found.")
@@ -105,8 +117,7 @@ if st.button("Calculate"):
     lat = location.latitude
     lon = location.longitude
 
-    tf = TimezoneFinder()
-    timezone_str = tf.timezone_at(lat=lat, lng=lon)
+    timezone_str = get_timezone(lat, lon)
 
     if timezone_str is None:
         st.error("Timezone not found.")
@@ -140,10 +151,6 @@ if st.button("Calculate"):
     desc = (asc + 180) % 360
     ic = (mc + 180) % 360
 
-    # =========================
-    # DISPLAY HOUSES
-    # =========================
-
     st.markdown("### House Cusps (Alcabitius)")
     for i in range(12):
         st.write(f"House {i+1} — {format_position(houses[i])}")
@@ -154,9 +161,9 @@ if st.button("Calculate"):
     st.write("Descendant —", format_position(desc))
     st.write("IC —", format_position(ic))
 
-    # =========================
+    # -------------------------
     # PLANETS
-    # =========================
+    # -------------------------
 
     planets = {
         "Sun": swe.SUN,
@@ -173,7 +180,7 @@ if st.button("Calculate"):
     st.markdown("### Planetary Positions")
 
     for name, body in planets.items():
-        pos = swe.calc_ut(jd_ut, body, swe.FLG_SWIEPH)
+        pos = swe.calc_ut(jd_ut, body)
         longitude = pos[0][0]
         planet_positions[name] = longitude
 
@@ -181,9 +188,9 @@ if st.button("Calculate"):
 
         st.write(f"{name} — {format_position(longitude)} — House {house}")
 
-    # =========================
+    # -------------------------
     # SECT
-    # =========================
+    # -------------------------
 
     sun_long = planet_positions["Sun"]
     is_day = ((sun_long - desc) % 360) < 180
@@ -191,9 +198,9 @@ if st.button("Calculate"):
     st.markdown("### Sect")
     st.write("Day Chart" if is_day else "Night Chart")
 
-    # =========================
+    # -------------------------
     # LOTS
-    # =========================
+    # -------------------------
 
     moon_long = planet_positions["Moon"]
 
