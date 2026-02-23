@@ -3,7 +3,6 @@ import swisseph as swe
 import datetime
 import pytz
 import re
-from geopy.geocoders import Nominatim
 from timezonefinder import TimezoneFinder
 
 # =========================
@@ -13,7 +12,7 @@ from timezonefinder import TimezoneFinder
 swe.set_ephe_path('./ephe')
 
 st.set_page_config(page_title="Natal Chart Calculator", layout="centered")
-st.title("Natal Chart Calculator")
+st.title("Natal Chart Calculator (Alcabitius Correct)")
 
 # =========================
 # INPUTS
@@ -21,24 +20,17 @@ st.title("Natal Chart Calculator")
 
 date = st.date_input(
     "Birth Date",
-    value=datetime.date(1980,1,1),
-    min_value=datetime.date(1500,1,1),
-    max_value=datetime.date(2100,12,31)
+    value=datetime.date(1980, 1, 1),
+    min_value=datetime.date(1500, 1, 1),
+    max_value=datetime.date(2100, 12, 31)
 )
 
 time_text = st.text_input("Birth Time (format: 00h00m)")
 
-location_mode = st.radio(
-    "Location Mode",
-    ["City lookup", "Manual coordinates"]
-)
+lat = st.number_input("Latitude", value=0.0, format="%.6f")
+lon = st.number_input("Longitude", value=0.0, format="%.6f")
 
-if location_mode == "City lookup":
-    place = st.text_input("Birth Place (City, Country)")
-else:
-    lat_manual = st.number_input("Latitude", value=0.0, format="%.6f")
-    lon_manual = st.number_input("Longitude", value=0.0, format="%.6f")
-    timezone_manual = st.text_input("Timezone (e.g. Europe/Lisbon)")
+timezone_str = st.text_input("Timezone (e.g. Europe/Lisbon)")
 
 # =========================
 # HELPERS
@@ -95,47 +87,9 @@ if st.button("Calculate"):
         st.error("Please enter time in format 00h00m.")
         st.stop()
 
-    # ---------------------
-    # LOCATION
-    # ---------------------
-
-    if location_mode == "City lookup":
-
-        if not place:
-            st.error("Please enter a city.")
-            st.stop()
-
-        try:
-            geolocator = Nominatim(user_agent="astro_app_unique_123")
-            location = geolocator.geocode(place, timeout=10)
-
-            if not location:
-                st.error("Location not found.")
-                st.stop()
-
-            lat = location.latitude
-            lon = location.longitude
-
-            tf = TimezoneFinder()
-            timezone_str = tf.timezone_at(lat=lat, lng=lon)
-
-            if timezone_str is None:
-                st.error("Timezone not found.")
-                st.stop()
-
-        except Exception:
-            st.error("City lookup temporarily unavailable. Use Manual coordinates.")
-            st.stop()
-
-    else:
-        lat = lat_manual
-        lon = lon_manual
-
-        if not timezone_manual:
-            st.error("Please enter timezone.")
-            st.stop()
-
-        timezone_str = timezone_manual
+    if not timezone_str:
+        st.error("Please enter timezone.")
+        st.stop()
 
     timezone = pytz.timezone(timezone_str)
 
@@ -150,11 +104,22 @@ if st.button("Calculate"):
         utc_dt.hour + utc_dt.minute/60 + utc_dt.second/3600
     )
 
+    # DEBUG (podes apagar depois)
+    st.write("UTC used:", utc_dt)
+    st.write("Latitude:", lat)
+    st.write("Longitude:", lon)
+
     # =====================
-    # HOUSES
+    # HOUSES — ALCABITIUS REAL
     # =====================
 
-    houses, ascmc = swe.houses(jd_ut, lat, lon, b'A')
+    houses, ascmc = swe.houses_ex(
+        jd_ut,
+        lat,
+        lon,
+        b'A',
+        swe.FLG_SWIEPH
+    )
 
     asc = ascmc[0]
     mc = ascmc[1]
@@ -190,7 +155,7 @@ if st.button("Calculate"):
     st.markdown("### Planetary Positions")
 
     for name, body in planets.items():
-        pos = swe.calc_ut(jd_ut, body)
+        pos = swe.calc_ut(jd_ut, body, swe.FLG_SWIEPH)
         longitude = pos[0][0]
         planet_positions[name] = longitude
 
