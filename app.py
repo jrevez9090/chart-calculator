@@ -15,7 +15,14 @@ st.markdown("Enter birth data to calculate planetary positions.")
 # INPUTS
 # ------------------------
 
-date = st.date_input("Birth Date")
+import datetime
+
+date = st.date_input(
+    "Birth Date",
+    value=datetime.date(1980,1,1),
+    min_value=datetime.date(1500,1,1),
+    max_value=datetime.date(2100,12,31)
+)
 time = st.time_input("Birth Time")
 place = st.text_input("Birth Place (City, Country)")
 
