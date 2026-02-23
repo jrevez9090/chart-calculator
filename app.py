@@ -17,7 +17,7 @@ st.markdown("Enter birth data to calculate planetary positions.")
 # ------------------------
 
 # IMPORTANT: later we will replace '.' with folder path containing .se1 files
-swe.set_ephe_path('.')
+swe.set_ephe_path('./ephe')
 
 # ------------------------
 # INPUTS
