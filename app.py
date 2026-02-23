@@ -7,15 +7,13 @@ from geopy.geocoders import Nominatim
 from timezonefinder import TimezoneFinder
 
 # =========================
-# SWISS EPHEMERIS SETUP
+# SWISS EPHEMERIS
 # =========================
 
 swe.set_ephe_path('./ephe')
 
 st.set_page_config(page_title="Natal Chart Calculator", layout="centered")
-
 st.title("Natal Chart Calculator")
-st.markdown("Enter birth data to calculate planetary positions.")
 
 # =========================
 # INPUTS
@@ -23,27 +21,24 @@ st.markdown("Enter birth data to calculate planetary positions.")
 
 date = st.date_input(
     "Birth Date",
-    value=datetime.date(1980, 1, 1),
-    min_value=datetime.date(1500, 1, 1),
-    max_value=datetime.date(2100, 12, 31)
+    value=datetime.date(1980,1,1),
+    min_value=datetime.date(1500,1,1),
+    max_value=datetime.date(2100,12,31)
 )
 
 time_text = st.text_input("Birth Time (format: 00h00m)")
-place = st.text_input("Birth Place (City, Country)")
 
-# =========================
-# CACHE GEOLOCATION
-# =========================
+location_mode = st.radio(
+    "Location Mode",
+    ["City lookup", "Manual coordinates"]
+)
 
-@st.cache_data
-def get_location(place_name):
-    geolocator = Nominatim(user_agent="astro_app_unique_123")
-    return geolocator.geocode(place_name)
-
-@st.cache_data
-def get_timezone(lat, lon):
-    tf = TimezoneFinder()
-    return tf.timezone_at(lat=lat, lng=lon)
+if location_mode == "City lookup":
+    place = st.text_input("Birth Place (City, Country)")
+else:
+    lat_manual = st.number_input("Latitude", value=0.0, format="%.6f")
+    lon_manual = st.number_input("Longitude", value=0.0, format="%.6f")
+    timezone_manual = st.text_input("Timezone (e.g. Europe/Lisbon)")
 
 # =========================
 # HELPERS
@@ -96,42 +91,57 @@ if st.button("Calculate"):
 
     time = parse_time(time_text)
 
-    if not place:
-        st.error("Please enter a location.")
-        st.stop()
-
     if time is None:
         st.error("Please enter time in format 00h00m.")
         st.stop()
 
-    # -------------------------
-    # GEOLOCATION
-    # -------------------------
+    # ---------------------
+    # LOCATION
+    # ---------------------
 
-    location = get_location(place)
+    if location_mode == "City lookup":
 
-    if not location:
-        st.error("Location not found.")
-        st.stop()
+        if not place:
+            st.error("Please enter a city.")
+            st.stop()
 
-    lat = location.latitude
-    lon = location.longitude
+        try:
+            geolocator = Nominatim(user_agent="astro_app_unique_123")
+            location = geolocator.geocode(place, timeout=10)
 
-    timezone_str = get_timezone(lat, lon)
+            if not location:
+                st.error("Location not found.")
+                st.stop()
 
-    if timezone_str is None:
-        st.error("Timezone not found.")
-        st.stop()
+            lat = location.latitude
+            lon = location.longitude
+
+            tf = TimezoneFinder()
+            timezone_str = tf.timezone_at(lat=lat, lng=lon)
+
+            if timezone_str is None:
+                st.error("Timezone not found.")
+                st.stop()
+
+        except Exception:
+            st.error("City lookup temporarily unavailable. Use Manual coordinates.")
+            st.stop()
+
+    else:
+        lat = lat_manual
+        lon = lon_manual
+
+        if not timezone_manual:
+            st.error("Please enter timezone.")
+            st.stop()
+
+        timezone_str = timezone_manual
 
     timezone = pytz.timezone(timezone_str)
 
     local_dt = datetime.datetime.combine(date, time)
     local_dt = timezone.localize(local_dt)
     utc_dt = local_dt.astimezone(pytz.utc)
-
-    # -------------------------
-    # JULIAN DAY
-    # -------------------------
 
     jd_ut = swe.julday(
         utc_dt.year,
@@ -140,9 +150,9 @@ if st.button("Calculate"):
         utc_dt.hour + utc_dt.minute/60 + utc_dt.second/3600
     )
 
-    # -------------------------
-    # HOUSES (ALCABITIUS)
-    # -------------------------
+    # =====================
+    # HOUSES
+    # =====================
 
     houses, ascmc = swe.houses(jd_ut, lat, lon, b'A')
 
@@ -161,9 +171,9 @@ if st.button("Calculate"):
     st.write("Descendant —", format_position(desc))
     st.write("IC —", format_position(ic))
 
-    # -------------------------
+    # =====================
     # PLANETS
-    # -------------------------
+    # =====================
 
     planets = {
         "Sun": swe.SUN,
@@ -188,9 +198,9 @@ if st.button("Calculate"):
 
         st.write(f"{name} — {format_position(longitude)} — House {house}")
 
-    # -------------------------
+    # =====================
     # SECT
-    # -------------------------
+    # =====================
 
     sun_long = planet_positions["Sun"]
     is_day = ((sun_long - desc) % 360) < 180
@@ -198,9 +208,9 @@ if st.button("Calculate"):
     st.markdown("### Sect")
     st.write("Day Chart" if is_day else "Night Chart")
 
-    # -------------------------
+    # =====================
     # LOTS
-    # -------------------------
+    # =====================
 
     moon_long = planet_positions["Moon"]
 
