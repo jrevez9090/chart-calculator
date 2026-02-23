@@ -203,6 +203,9 @@ if st.button("Calculate"):
     st.markdown("### Sect")
     st.write("Day Chart" if is_day else "Night Chart")
 
+    st.write("Latitude usada:", lat)
+    st.write("Longitude usada:", lon)
+    
     # ---------------------
     # LOTS
     # ---------------------
