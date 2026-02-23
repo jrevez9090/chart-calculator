@@ -160,8 +160,9 @@ if st.button("Calculate"):
     # =====================
 
     st.markdown("### House Cusps (Alcabitius)")
-    for i in range(12):
-        st.write(f"House {i+1} — {format_position(houses[i])}")
+
+    for i in range(1, 13):
+    st.write(f"House {i} — {format_position(houses[i])}")
 
     st.markdown("### Angles")
     st.write("Ascendant —", format_position(asc))
